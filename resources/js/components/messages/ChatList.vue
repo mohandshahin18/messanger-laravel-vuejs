@@ -91,7 +91,7 @@
 
                             <div class="d-flex align-items-center">
                                 <div class="line-clamp me-auto">
-                                    <p
+                                    <!-- <p
                                         v-if="
                                             conversation.participants[0]
                                                 .isTyping
@@ -102,8 +102,8 @@
                                             ><span>.</span><span>.</span
                                             ><span>.</span></span
                                         >
-                                    </p>
-                                    <p v-else>
+                                    </p> -->
+                                    <p >
                                         {{ conversation.last_message.body }}
                                     </p>
                                 </div>

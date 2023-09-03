@@ -22,13 +22,26 @@ class MessageController extends Controller
     public function index($id)
     {
         $user = Auth::user();
-        $conversation = $user->conversations()->with(['participants' => function ($builder) use ($user) {
-            $builder->where('id', '<>', $user->id);
-        }])->findOrFail($id);
+        $conversation = $user->conversations()
+            ->with(['participants' => function ($builder) use ($user) {
+                $builder->where('id', '<>', $user->id);
+            }])->findOrFail($id);
 
+        $messages = $conversation->messages()
+            ->with('user')
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereRaw('id IN (
+                SELECT message_id FROM recipients
+                WHERE recipients.message_id = messages.id
+                AND recipients.user_id = ?
+                 AND recipients.deleted_at IS NULL
+            )', [$user->id]);
+            })
+            ->paginate();
         return [
-            'conversation' => $conversation ,
-            'messages' =>$conversation->messages()->with('user')->paginate(200)
+            'conversation' => $conversation,
+            'messages' => $messages
         ];
     }
 
@@ -52,7 +65,7 @@ class MessageController extends Controller
             ],
         ]);
 
-        $user =Auth::user();
+        $user = Auth::user();
         $coversation_id = $request->coversation_id;
         $user_id = $request->user_id;
 
@@ -90,16 +103,15 @@ class MessageController extends Controller
                 SELECT user_id , ?  FROM participants
                 WHERE conversation_id = ?
                 AND user_id <> ?
-            ', [$message->id, $conversation->id , $user->id]);
+            ', [$message->id, $conversation->id, $user->id]);
 
             $conversation->update([
-                'last_message_id'=>$message->id,
+                'last_message_id' => $message->id,
             ]);
 
             DB::commit();
             $message->load('user');
             broadcast(new MessageCreated($message));
-
         } catch (Throwable $e) {
             DB::rollBack();
 
